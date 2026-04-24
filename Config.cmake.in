@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+set_and_check(ConvertMesh_INCLUDE_DIRS "@PACKAGE_ConvertMesh_INCLUDE_DIRS@")
+
+include("${CMAKE_CURRENT_LIST_DIR}/ConvertMeshTargets.cmake")
+
+check_required_components(ConvertMesh)
