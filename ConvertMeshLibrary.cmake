@@ -20,7 +20,14 @@ set(CMESH_DRIVER_SOURCES
   src/adapters/WriteMesh.cxx
   src/adapters/ReadImage.cxx
   src/adapters/WriteImage.cxx
-  src/adapters/StackOps.cxx)
+  src/adapters/StackOps.cxx
+  src/adapters/ExtractIsoSurface.cxx
+  src/adapters/SmoothMesh.cxx
+  src/adapters/DecimateMesh.cxx
+  src/adapters/ComputeNormals.cxx
+  src/adapters/FlipNormals.cxx
+  src/adapters/MeshDiff.cxx
+  src/impl/vtk/FlipPolyFacesFilter.cxx)
 
 set(CMESH_API_SOURCES
   src/api/ConvertMeshAPI.cxx)

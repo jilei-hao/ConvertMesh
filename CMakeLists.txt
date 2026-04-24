@@ -32,7 +32,6 @@ if(NOT CONVERTMESH_BUILD_AS_SUBPROJECT)
   find_package(ITK REQUIRED COMPONENTS
     ITKCommon
     ITKIOImageBase
-    ITKIOImageBase
     ITKIONIFTI
     ITKIONRRD
     ITKIOGIPL
@@ -42,7 +41,8 @@ if(NOT CONVERTMESH_BUILD_AS_SUBPROJECT)
     ITKIOTIFF
     ITKIOVTK
     ITKImageGrid
-    ITKTransform)
+    ITKTransform
+    ITKVTK)
   include(${ITK_USE_FILE})
 
   find_package(VTK 9 REQUIRED COMPONENTS
@@ -56,10 +56,12 @@ if(NOT CONVERTMESH_BUILD_AS_SUBPROJECT)
     FiltersModeling
     FiltersSources
     IOGeometry
+    IOImage
     IOLegacy
     IOPLY
     IOXML
-    ImagingCore)
+    ImagingCore
+    ImagingGeneral)
 
   set(CONVERTMESH_BUILD_CLI ON)
   set(CONVERTMESH_INSTALL_CLI ON)

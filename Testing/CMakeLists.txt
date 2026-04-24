@@ -16,6 +16,16 @@ target_include_directories(MeshIOTest PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
 target_link_libraries(MeshIOTest PRIVATE cmesh_driver)
 add_test(NAME MeshIOTest COMMAND MeshIOTest ${CMAKE_CURRENT_BINARY_DIR})
 
+add_executable(IsoSurfaceTest UnitTests/IsoSurfaceTest.cxx)
+target_include_directories(IsoSurfaceTest PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
+target_link_libraries(IsoSurfaceTest PRIVATE cmesh_driver)
+add_test(NAME IsoSurfaceTest COMMAND IsoSurfaceTest ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(MeshOpsTest UnitTests/MeshOpsTest.cxx)
+target_include_directories(MeshOpsTest PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
+target_link_libraries(MeshOpsTest PRIVATE cmesh_driver)
+add_test(NAME MeshOpsTest COMMAND MeshOpsTest ${CMAKE_CURRENT_BINARY_DIR})
+
 # -----------------------------------------------------------------------
 # CLI end-to-end tests (shell scripts driving the cmesh binary)
 # -----------------------------------------------------------------------
@@ -38,4 +48,29 @@ if(TARGET cmesh)
   set_tests_properties(CLIRoundTrip PROPERTIES
     DEPENDS MeshIOTest
     REQUIRED_FILES ${CMAKE_CURRENT_BINARY_DIR}/cube.vtp)
+
+  # IsoSurface pipeline end-to-end: read image, extract, smooth, decimate, write.
+  add_test(NAME CLIIsoSurfacePipeline
+           COMMAND ${CMAKE_COMMAND} -E env
+             $<TARGET_FILE:cmesh>
+             -verbose
+             ${CMAKE_CURRENT_BINARY_DIR}/sphere.nii.gz
+             -extract-isosurface 0.5 -clean
+             -smooth-mesh 3 0.2
+             -decimate 0.3
+             -compute-normals
+             -o ${CMAKE_CURRENT_BINARY_DIR}/sphere-pipeline.vtp)
+  set_tests_properties(CLIIsoSurfacePipeline PROPERTIES
+    DEPENDS IsoSurfaceTest
+    REQUIRED_FILES ${CMAKE_CURRENT_BINARY_DIR}/sphere.nii.gz)
+
+  # MeshDiff against the unmodified reference — mean distance should be 0.
+  add_test(NAME CLIMeshDiffZero
+           COMMAND ${CMAKE_COMMAND} -E env
+             $<TARGET_FILE:cmesh>
+             ${CMAKE_CURRENT_BINARY_DIR}/cube.vtp
+             -meshdiff ${CMAKE_CURRENT_BINARY_DIR}/cube.vtp)
+  set_tests_properties(CLIMeshDiffZero PROPERTIES
+    DEPENDS MeshIOTest
+    PASS_REGULAR_EXPRESSION "mean=0")
 endif()

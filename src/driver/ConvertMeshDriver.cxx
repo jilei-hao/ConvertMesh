@@ -1,7 +1,13 @@
 #include "ConvertMeshDriver.h"
 
+#include "adapters/ComputeNormals.h"
+#include "adapters/DecimateMesh.h"
+#include "adapters/ExtractIsoSurface.h"
+#include "adapters/FlipNormals.h"
+#include "adapters/MeshDiff.h"
 #include "adapters/ReadImage.h"
 #include "adapters/ReadMesh.h"
+#include "adapters/SmoothMesh.h"
 #include "adapters/StackOps.h"
 #include "adapters/WriteImage.h"
 #include "adapters/WriteMesh.h"
@@ -226,6 +232,90 @@ int ConvertMeshDriver<TPixel, VDim>::ProcessCommand(int argc, char *argv[])
     return 1;
   }
 
+  // -------------------- mesh ops --------------------
+  if(cmd == "-extract-isosurface" || cmd == "-isosurface")
+  {
+    if(argc < 2) throw ConvertMeshException(cmd + " requires a threshold value");
+    typename ExtractIsoSurface<TPixel, VDim>::Parameters params;
+    params.threshold = std::atof(argv[1]);
+    // Optional in-line modifier flags (sticky-free; consumed here only).
+    int consumed = 1;
+    while(consumed + 1 < argc)
+    {
+      std::string sub = argv[consumed + 1];
+      if(sub == "-multi-label") { params.multi_label = true; consumed += 1; }
+      else if(sub == "-clean") { params.clean = true; consumed += 1; }
+      else if(sub == "-smooth-pre")
+      {
+        if(consumed + 2 >= argc) throw ConvertMeshException("-smooth-pre needs a value");
+        params.smooth_pre = std::atof(argv[consumed + 2]);
+        consumed += 2;
+      }
+      else if(sub == "-decimate-post")
+      {
+        if(consumed + 2 >= argc) throw ConvertMeshException("-decimate-post needs a value");
+        params.decimate = std::atof(argv[consumed + 2]);
+        consumed += 2;
+      }
+      else break;
+    }
+    ExtractIsoSurface<TPixel, VDim>(this)(params);
+    return consumed;
+  }
+
+  if(cmd == "-smooth-mesh")
+  {
+    if(argc < 2) throw ConvertMeshException("-smooth-mesh requires iterations");
+    typename SmoothMesh<TPixel, VDim>::Parameters params;
+    params.iterations = std::atoi(argv[1]);
+    int consumed = 1;
+    if(argc >= 3 && argv[2][0] != '-')
+    {
+      params.relaxation_factor = std::atof(argv[2]);
+      consumed = 2;
+    }
+    SmoothMesh<TPixel, VDim>(this)(params);
+    return consumed;
+  }
+
+  if(cmd == "-decimate")
+  {
+    if(argc < 2) throw ConvertMeshException("-decimate requires a reduction factor");
+    typename DecimateMesh<TPixel, VDim>::Parameters params;
+    params.reduction = std::atof(argv[1]);
+    DecimateMesh<TPixel, VDim>(this)(params);
+    return 1;
+  }
+
+  if(cmd == "-compute-normals" || cmd == "-normals")
+  {
+    typename ComputeNormals<TPixel, VDim>::Parameters params;
+    int consumed = 0;
+    // Optional -auto-orient modifier.
+    if(argc >= 2 && std::string(argv[1]) == "-auto-orient")
+    {
+      params.auto_orient = true;
+      consumed = 1;
+    }
+    ComputeNormals<TPixel, VDim>(this)(params);
+    return consumed;
+  }
+
+  if(cmd == "-flip-normals")
+  {
+    FlipNormals<TPixel, VDim>(this)();
+    return 0;
+  }
+
+  if(cmd == "-meshdiff")
+  {
+    if(argc < 2) throw ConvertMeshException("-meshdiff requires a reference mesh filename");
+    typename MeshDiff<TPixel, VDim>::Parameters params;
+    params.reference = argv[1];
+    MeshDiff<TPixel, VDim>(this)(params);
+    return 1;
+  }
+
   throw UnknownCommandException(cmd);
 }
 
@@ -269,11 +359,22 @@ void ConvertMeshDriver<TPixel, VDim>::PrintUsage(std::ostream &out) const
     "  -verbose            Print per-operation progress.\n"
     "  -no-warn            Silence data-loss warnings.\n"
     "\n"
+    "Mesh operations:\n"
+    "  -extract-isosurface T [modifiers]\n"
+    "                      Pop image, push iso-surface at threshold T.\n"
+    "                      Modifiers: -multi-label, -clean, -smooth-pre SIGMA,\n"
+    "                                 -decimate-post FRAC.\n"
+    "  -smooth-mesh N [RELAX]\n"
+    "                      Laplacian smooth top-of-stack mesh (N iterations).\n"
+    "  -decimate FRAC      Reduce polygon count by FRAC (0..1).\n"
+    "  -compute-normals [-auto-orient]\n"
+    "                      Compute polydata normals.\n"
+    "  -flip-normals       Reverse triangle winding (array-preserving).\n"
+    "  -meshdiff REF.vtp   Add 'Distance' array of top mesh vs. reference.\n"
+    "\n"
     "Meta:\n"
     "  -h, --help          Print this message.\n"
-    "  --version           Print version.\n"
-    "\n"
-    "Mesh operations will be added incrementally. See the plan document for the roadmap.\n";
+    "  --version           Print version.\n";
 }
 
 // --------------------------------------------------------------------------
