@@ -136,8 +136,9 @@ void ExtractIsoSurface<TPixel, VDim>::operator()(const Parameters &p)
     mesh = tri2->GetOutput();
   }
 
-  // --- Transform voxel -> physical space ---
-  auto mat = VTKToITKBridge::VoxelToPhysicalMatrix<ImageType>(img);
+  // --- Transform VTK-output space -> NIFTI RAS ---
+  // Matches cmrep vtklevelset output (ConvertMesh's standard convention).
+  auto mat = VTKToITKBridge::VtkToRasMatrix<ImageType>(img);
   vtkNew<vtkTransform> xform;
   xform->SetMatrix(mat);
 

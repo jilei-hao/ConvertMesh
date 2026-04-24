@@ -4,11 +4,15 @@
 #include "adapters/DecimateMesh.h"
 #include "adapters/ExtractIsoSurface.h"
 #include "adapters/FlipNormals.h"
+#include "adapters/MergeArrays.h"
 #include "adapters/MeshDiff.h"
+#include "adapters/RasterizeMesh.h"
 #include "adapters/ReadImage.h"
 #include "adapters/ReadMesh.h"
+#include "adapters/SampleImageAtMesh.h"
 #include "adapters/SmoothMesh.h"
 #include "adapters/StackOps.h"
+#include "adapters/WarpMesh.h"
 #include "adapters/WriteImage.h"
 #include "adapters/WriteMesh.h"
 #include "io/MeshIO.h"
@@ -312,8 +316,96 @@ int ConvertMeshDriver<TPixel, VDim>::ProcessCommand(int argc, char *argv[])
     if(argc < 2) throw ConvertMeshException("-meshdiff requires a reference mesh filename");
     typename MeshDiff<TPixel, VDim>::Parameters params;
     params.reference = argv[1];
-    MeshDiff<TPixel, VDim>(this)(params);
+    MeshDiff<TPixel, VDim> op(this);
+    op(params);
     return 1;
+  }
+
+  // -------------------- image <-> mesh interop --------------------
+  if(cmd == "-rasterize")
+  {
+    typename RasterizeMesh<TPixel, VDim>::Parameters params;
+    int consumed = 0;
+    // Scan forward for optional modifiers.
+    while(consumed + 1 < argc && argv[consumed + 1][0] == '-')
+    {
+      std::string sub = argv[consumed + 1];
+      if(sub == "-ref")
+      {
+        if(consumed + 2 >= argc) throw ConvertMeshException("-ref needs a filename");
+        params.reference = argv[consumed + 2];
+        consumed += 2;
+      }
+      else if(sub == "-spacing")
+      {
+        if(consumed + 4 >= argc) throw ConvertMeshException("-spacing needs sx sy sz");
+        params.spacing[0] = std::atof(argv[consumed + 2]);
+        params.spacing[1] = std::atof(argv[consumed + 3]);
+        params.spacing[2] = std::atof(argv[consumed + 4]);
+        consumed += 4;
+      }
+      else if(sub == "-margin")
+      {
+        if(consumed + 2 >= argc) throw ConvertMeshException("-margin needs a value");
+        params.margin = std::atof(argv[consumed + 2]);
+        consumed += 2;
+      }
+      else if(sub == "-inside")
+      {
+        if(consumed + 2 >= argc) throw ConvertMeshException("-inside needs a value");
+        params.inside_value = static_cast<TPixel>(std::atof(argv[consumed + 2]));
+        consumed += 2;
+      }
+      else break;
+    }
+    RasterizeMesh<TPixel, VDim> op(this);
+    op(params);
+    return consumed;
+  }
+
+  if(cmd == "-warp-mesh")
+  {
+    if(argc < 2) throw ConvertMeshException("-warp-mesh requires a warp field filename");
+    typename WarpMesh<TPixel, VDim>::Parameters params;
+    params.warp_field = argv[1];
+    WarpMesh<TPixel, VDim> op(this);
+    op(params);
+    return 1;
+  }
+
+  if(cmd == "-sample-image")
+  {
+    if(argc < 2) throw ConvertMeshException("-sample-image requires an array name");
+    typename SampleImageAtMesh<TPixel, VDim>::Parameters params;
+    params.array_name = argv[1];
+    SampleImageAtMesh<TPixel, VDim> op(this);
+    op(params);
+    return 1;
+  }
+
+  if(cmd == "-merge-array" || cmd == "-merge-arrays")
+  {
+    if(argc < 3)
+      throw ConvertMeshException(cmd + " requires SOURCE_MESH and ARRAY_NAME");
+    typename MergeArrays<TPixel, VDim>::Parameters params;
+    params.source_mesh = argv[1];
+    params.array_name  = argv[2];
+    int consumed = 2;
+    while(consumed + 1 < argc && argv[consumed + 1][0] == '-')
+    {
+      std::string sub = argv[consumed + 1];
+      if(sub == "-cell") { params.cell_data = true; consumed += 1; }
+      else if(sub == "-rename")
+      {
+        if(consumed + 2 >= argc) throw ConvertMeshException("-rename needs a name");
+        params.rename_to = argv[consumed + 2];
+        consumed += 2;
+      }
+      else break;
+    }
+    MergeArrays<TPixel, VDim> op(this);
+    op(params);
+    return consumed;
   }
 
   throw UnknownCommandException(cmd);
@@ -371,6 +463,15 @@ void ConvertMeshDriver<TPixel, VDim>::PrintUsage(std::ostream &out) const
     "                      Compute polydata normals.\n"
     "  -flip-normals       Reverse triangle winding (array-preserving).\n"
     "  -meshdiff REF.vtp   Add 'Distance' array of top mesh vs. reference.\n"
+    "\n"
+    "Image / mesh interop:\n"
+    "  -rasterize [-ref REF | -spacing SX SY SZ] [-margin M] [-inside V]\n"
+    "                      Pop mesh, push a binary image covering its interior.\n"
+    "  -warp-mesh WARP     Displace top mesh by an ITK vector warp field.\n"
+    "  -sample-image NAME  Pop image, annotate mesh below with named scalar array\n"
+    "                      sampled via the sticky -int interpolation mode.\n"
+    "  -merge-array SRC NAME [-cell] [-rename NEW]\n"
+    "                      Copy named point/cell array from SRC mesh onto top mesh.\n"
     "\n"
     "Meta:\n"
     "  -h, --help          Print this message.\n"

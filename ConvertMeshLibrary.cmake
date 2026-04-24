@@ -27,6 +27,10 @@ set(CMESH_DRIVER_SOURCES
   src/adapters/ComputeNormals.cxx
   src/adapters/FlipNormals.cxx
   src/adapters/MeshDiff.cxx
+  src/adapters/RasterizeMesh.cxx
+  src/adapters/WarpMesh.cxx
+  src/adapters/SampleImageAtMesh.cxx
+  src/adapters/MergeArrays.cxx
   src/impl/vtk/FlipPolyFacesFilter.cxx)
 
 set(CMESH_API_SOURCES

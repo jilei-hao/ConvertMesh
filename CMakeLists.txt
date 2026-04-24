@@ -61,7 +61,8 @@ if(NOT CONVERTMESH_BUILD_AS_SUBPROJECT)
     IOPLY
     IOXML
     ImagingCore
-    ImagingGeneral)
+    ImagingGeneral
+    ImagingStencil)
 
   set(CONVERTMESH_BUILD_CLI ON)
   set(CONVERTMESH_INSTALL_CLI ON)

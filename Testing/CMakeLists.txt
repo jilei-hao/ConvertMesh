@@ -26,6 +26,16 @@ target_include_directories(MeshOpsTest PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
 target_link_libraries(MeshOpsTest PRIVATE cmesh_driver)
 add_test(NAME MeshOpsTest COMMAND MeshOpsTest ${CMAKE_CURRENT_BINARY_DIR})
 
+add_executable(InteropTest UnitTests/InteropTest.cxx)
+target_include_directories(InteropTest PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
+target_link_libraries(InteropTest PRIVATE cmesh_driver)
+add_test(NAME InteropTest COMMAND InteropTest ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(AnisotropicTest UnitTests/AnisotropicTest.cxx)
+target_include_directories(AnisotropicTest PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
+target_link_libraries(AnisotropicTest PRIVATE cmesh_driver)
+add_test(NAME AnisotropicTest COMMAND AnisotropicTest)
+
 # -----------------------------------------------------------------------
 # CLI end-to-end tests (shell scripts driving the cmesh binary)
 # -----------------------------------------------------------------------
@@ -73,4 +83,32 @@ if(TARGET cmesh)
   set_tests_properties(CLIMeshDiffZero PROPERTIES
     DEPENDS MeshIOTest
     PASS_REGULAR_EXPRESSION "mean=0")
+
+  # Rasterize a mesh and write the binary image to disk.
+  add_test(NAME CLIRasterize
+           COMMAND ${CMAKE_COMMAND} -E env
+             $<TARGET_FILE:cmesh>
+             ${CMAKE_CURRENT_BINARY_DIR}/sphere-mesh.vtp
+             -rasterize -spacing 0.5 0.5 0.5 -margin 1.0
+             -o ${CMAKE_CURRENT_BINARY_DIR}/sphere-raster.nii.gz)
+  set_tests_properties(CLIRasterize PROPERTIES DEPENDS IsoSurfaceTest)
+
+  # Sample an image on a mesh via the stack.
+  add_test(NAME CLISampleImage
+           COMMAND ${CMAKE_COMMAND} -E env
+             $<TARGET_FILE:cmesh>
+             ${CMAKE_CURRENT_BINARY_DIR}/sphere-mesh.vtp
+             -push-image ${CMAKE_CURRENT_BINARY_DIR}/sphere.nii.gz
+             -sample-image Surface
+             -o ${CMAKE_CURRENT_BINARY_DIR}/sphere-sampled.vtp)
+  set_tests_properties(CLISampleImage PROPERTIES DEPENDS IsoSurfaceTest)
+
+  # Warp with the constant translation field from InteropTest.
+  add_test(NAME CLIWarpMesh
+           COMMAND ${CMAKE_COMMAND} -E env
+             $<TARGET_FILE:cmesh>
+             ${CMAKE_CURRENT_BINARY_DIR}/sphere-mesh.vtp
+             -warp-mesh ${CMAKE_CURRENT_BINARY_DIR}/warp-tx.nii.gz
+             -o ${CMAKE_CURRENT_BINARY_DIR}/sphere-warped.vtp)
+  set_tests_properties(CLIWarpMesh PROPERTIES DEPENDS InteropTest)
 endif()
