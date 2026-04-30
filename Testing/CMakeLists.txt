@@ -37,6 +37,36 @@ target_link_libraries(AnisotropicTest PRIVATE cmesh_driver)
 add_test(NAME AnisotropicTest COMMAND AnisotropicTest)
 
 # -----------------------------------------------------------------------
+# Fixture-generator helpers (used by scripts/generate-cmrep-ground-truth.sh
+# to seed the cmrep parity fixtures committed under Testing/Fixtures/)
+# -----------------------------------------------------------------------
+add_executable(MakeSphereImage Fixtures/Tools/MakeSphereImage.cxx)
+target_include_directories(MakeSphereImage PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
+target_link_libraries(MakeSphereImage PRIVATE cmesh_driver)
+
+add_executable(AddTagArray Fixtures/Tools/AddTagArray.cxx)
+target_include_directories(AddTagArray PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
+target_link_libraries(AddTagArray PRIVATE cmesh_driver)
+
+# -----------------------------------------------------------------------
+# Cmrep parity tests: run cmesh adapters and compare against pre-generated
+# cmrep ground-truth meshes/images in Testing/Fixtures/cmrep-truth/.
+# Skipped automatically when fixtures are missing (fresh clone).
+# -----------------------------------------------------------------------
+set(CMREP_TRUTH_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Fixtures/cmrep-truth)
+if(EXISTS ${CMREP_TRUTH_DIR}/sphere.nii.gz)
+  add_executable(CmrepParityTest UnitTests/CmrepParityTest.cxx)
+  target_include_directories(CmrepParityTest PRIVATE ${CONVERTMESH_INCLUDE_DIRS})
+  target_link_libraries(CmrepParityTest PRIVATE cmesh_driver)
+  add_test(NAME CmrepParityTest
+           COMMAND CmrepParityTest ${CMREP_TRUTH_DIR})
+else()
+  message(STATUS "ConvertMesh: cmrep parity fixtures not found at "
+                 "${CMREP_TRUTH_DIR} — run scripts/generate-cmrep-ground-truth.sh "
+                 "to populate them. Skipping CmrepParityTest.")
+endif()
+
+# -----------------------------------------------------------------------
 # CLI end-to-end tests (shell scripts driving the cmesh binary)
 # -----------------------------------------------------------------------
 if(TARGET cmesh)
